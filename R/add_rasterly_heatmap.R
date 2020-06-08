@@ -1,21 +1,22 @@
 #' @title Add "rasterly" trace to a Plotly visualization
+#' @name add_rasterly
 #' @description Add trace to a Plotly visualization.
 #' @param p A \code{plotly} object
-#' @param x Numeric vector or expression. The x variable, to be passed on to `aes()`.
-#' @param y Numeric or expression. The y variable, to be passed on to `aes()`.
-#' @param z Numeric. A numeric matrix (optional), to be processed with `add_heatmap`.
+#' @param x Numeric vector or expression. The x variable, to be passed on to \code{aes()}.
+#' @param y Numeric or expression. The y variable, to be passed on to \code{aes()}.
+#' @param z Numeric. A numeric matrix (optional), to be processed with \code{add_heatmap}.
 #' @param data A data.frame or \link[crosstalk]{SharedData} object (optional).
 #' @param inherit Logical. Inherit attributes from \link[plotly]{plotly}?
-#' @param on Numeric vector or expression. Provides the data on which to reduce, to be passed on to `aes()`.
-#' @param size Numeric vector or expression. Pixel size for each observation, to be passed on to `aes()`.
+#' @param on Numeric vector or expression. Provides the data on which to reduce, to be passed on to \code{aes()}.
+#' @param size Numeric vector or expression. Pixel size for each observation, to be passed on to \code{aes()}.
 #' @param scaling Character string or function. The scaling method to be used for the trace.
-#' @param ... Arguments (i.e., attributes) passed along to the trace type or `rasterly`.
+#' @param ... Arguments (i.e., attributes) passed along to the trace type or \code{rasterly}.
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#'library(rasterly)
-#'if(requireNamespace("plotly") && requireNamespace("data.table")) {
+#'if(requireNamespace("plotly") && requireNamespace("data.table") &&
+#'   requireNamespace("lubridate")) {
 #'  # Load data
 #'  url1 <- "https://raw.githubusercontent.com/plotly/datasets/master/uber-rides-data1.csv"
 #'  ridesRaw_1 <-  url1 %>%
@@ -26,10 +27,15 @@
 #'  url3 <- "https://raw.githubusercontent.com/plotly/datasets/master/uber-rides-data3.csv"
 #'  ridesRaw_3 <-  url3 %>%
 #'    data.table::fread(stringsAsFactors = FALSE) 
-#'    
-#'  ridesDf <- list(ridesRaw_1, ridesRaw_2, ridesRaw_3) %>%
+#'  ridesDf <- list(ridesRaw_1, ridesRaw_2, ridesRaw_3) %>% 
 #'    data.table::rbindlist()
-#'
+#'  time <- lubridate::ymd_hms(ridesDf$`Date/Time`)
+#'  ridesDf <-  ridesDf[, 'Date/Time':=NULL][, list(Lat, 
+#'                                                  Lon,
+#'                                                  hour = lubridate::hour(time),
+#'                                                  month = lubridate::month(time),
+#'                                                  day = lubridate::day(time))]
+#'  ############################# add_rasterly_heatmap #############################
 #'  #### quick start
 #'  p <- plot_ly(data = ridesDf) %>%
 #'         add_rasterly_heatmap(x = ~Lat, y = ~Lon)
@@ -55,13 +61,21 @@
 #'        title = "y"
 #'      )
 #'    )
+#'  ############################# add_rasterly_image #############################
+#'  p <- plot_ly(data = ridesDf) %>%
+#'         add_rasterly_image(x = ~Lat, y = ~Lon, color = ~hour,
+#'                            # even `color_map` is deprecated,
+#'                            # it is still a good way to specify the color mapping
+#'                            color_map = hourColors_map, 
+#'                            plot_width = 400, plot_height = 400)
+#'  p
 #'  }
 #' }
 add_rasterly_heatmap <- function(p,
-                         x = NULL, y = NULL, z = NULL, ...,
-                         data = NULL, inherit = TRUE,
-                         on = NULL, size = NULL,
-                         scaling = NULL) {
+                                 x = NULL, y = NULL, z = NULL, ...,
+                                 data = NULL, inherit = TRUE,
+                                 on = NULL, size = NULL,
+                                 scaling = NULL) {
   if (inherit) {
     x <- x %||% p$x$attrs[[1]][["x"]]
     y <- y %||% p$x$attrs[[1]][["y"]]
@@ -69,7 +83,13 @@ add_rasterly_heatmap <- function(p,
   }
 
   args <- list(...)
-  rasterly_args <- union(methods::formalArgs(rasterly), methods::formalArgs(rasterize_points))
+  rasterly_args <- c(
+    union(methods::formalArgs(rasterly), methods::formalArgs(rasterly_points)),
+    "color_map",
+    "colour_map",
+    "color_key",
+    "colour_key"
+  )
   args[rasterly_args] <- NULL
 
   if (is.null(z)) {
@@ -112,13 +132,11 @@ add_rasterly_heatmap <- function(p,
 
     data %>%
       rasterly(mapping = mapping,
-                 show_raster = FALSE,
-                 ...) %>%
-      rasterize_points() %>%
+               show_raster = FALSE,
+               ...) %>%
+      rasterly_points() %>%
       rasterly_build() -> rastObj
-    remove(data)
     data <- NULL
-
     if(sum(lengths(rastObj$agg)) > 1)
       message("More than one aggregation matrix was detected.")
 
@@ -143,7 +161,7 @@ add_rasterly_heatmap <- function(p,
              },
              "origin" = NULL)
     }
-  } else message("If z is provided, `plotly::add_heatmap` will be called.")
+  } else message("If z is provided, `plotly::add_heatmap` will be implemented.")
 
   do.call(
     add_trace_classed,

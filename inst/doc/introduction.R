@@ -1,135 +1,199 @@
-## ----library, eval = TRUE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 4, out.width = "75%", warning=FALSE, message=FALSE----
-library(rasterly)
-library(data.table)
-library(lubridate)
-library(grid)
-library(plotly)
+## ----setup, include=FALSE-----------------------------------------------------
+knitr::opts_chunk$set(
+    echo = TRUE, 
+    tidy.opts = list(width.cutoff = 65),
+    tidy = TRUE)
 
-## ----data----------------------------------------------------------------
-# Load data
-ridesRaw_1 <- "https://raw.githubusercontent.com/plotly/datasets/master/uber-rides-data1.csv" %>%
-  data.table::fread(stringsAsFactors = FALSE)
-ridesRaw_2 <- "https://raw.githubusercontent.com/plotly/datasets/master/uber-rides-data2.csv" %>% 
-  data.table::fread(stringsAsFactors = FALSE)
-ridesRaw_3 <- "https://raw.githubusercontent.com/plotly/datasets/master/uber-rides-data3.csv"  %>% 
-  data.table::fread(stringsAsFactors = FALSE)
-ridesDf <- list(ridesRaw_1, ridesRaw_2, ridesRaw_3) %>% 
-  data.table::rbindlist()
+set.seed(12314159)
 
-# Extract hour of trip taken
-time <- lubridate::ymd_hms(ridesDf$`Date/Time`)
-ridesDf <-  ridesDf[, 'Date/Time':=NULL][, list(Lat, 
-                                                Lon,
-                                                hour = lubridate::hour(time), 
-                                                month = lubridate::month(time),
-                                                day = lubridate::day(time))]
-head(ridesDf)
+imageDirectory <- "./images/introduction"
+path_concat <- function(path1, path2, sep="/") {paste(path1, path2, sep = sep)}
 
-## ----basic, warning=FALSE, message=FALSE, fig.width = 4, fig.height = 3----
-start_time <- Sys.time()
-p <- ridesDf %>% 
-  rasterly(mapping = aes(x = Lat, y = Lon)) %>% 
-  rasterize_points()
-p
-end_time <- Sys.time()
-end_time - start_time
+## ----library, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 4, out.width = "75%", warning=FALSE, message=FALSE----
+#  library(rasterly)
+#  library(data.table)
+#  library(lubridate)
+#  library(grid)
+#  library(plotly)
 
-## ----list return---------------------------------------------------------
-# A list of environments
-str(p)
+## ----data, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  # Load data
+#  ridesRaw_1 <- "https://raw.githubusercontent.com/plotly/datasets/master/uber-rides-data1.csv" %>%
+#    data.table::fread(stringsAsFactors = FALSE)
+#  ridesRaw_2 <- "https://raw.githubusercontent.com/plotly/datasets/master/uber-rides-data2.csv" %>%
+#    data.table::fread(stringsAsFactors = FALSE)
+#  ridesRaw_3 <- "https://raw.githubusercontent.com/plotly/datasets/master/uber-rides-data3.csv"  %>%
+#    data.table::fread(stringsAsFactors = FALSE)
+#  ridesDf <- list(ridesRaw_1, ridesRaw_2, ridesRaw_3) %>%
+#    data.table::rbindlist()
+#  
+#  # Extract hour of trip taken
+#  time <- lubridate::ymd_hms(ridesDf$`Date/Time`)
+#  ridesDf <-  ridesDf[, 'Date/Time':=NULL][, list(Lat,
+#                                                  Lon,
+#                                                  hour = lubridate::hour(time),
+#                                                  month = lubridate::month(time),
+#                                                  day = lubridate::day(time))]
 
-## ----subsetting, warning=FALSE, message=FALSE, fig.width = 4, fig.height = 3----
-p["background"]
-# Replace the background in child layer `rasterly_points()`
-p["background", level = 2] <- "black"
-p["background"]
-# color_maps in both `rasterly()` and `rasterly_points()` are replaced
-## fire_map is a vector of colors (as character strings) with length 256
-## see `rasterly::fire_map`
-p["color_map", level = 1:2] <- fire_map
-p
+## ----basic, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  start_time <- Sys.time()
+#  p <- ridesDf %>%
+#    rasterly(mapping = aes(x = Lat, y = Lon)) %>%
+#    rasterly_points()
+#  p
+#  end_time <- Sys.time()
+#  end_time - start_time
 
-## ----rasterly_build------------------------------------------------------
-build <- rasterly_build(p)
-str(build)
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "uberBasic.png"))
 
-## ----add_rasterly_heatmap, fig.width = 4, fig.height = 3-----------------
-plotly::plot_ly(ridesDf, x = ~Lat, y = ~Lon) %>%
-  add_rasterly_heatmap() %>% 
-  layout(
-    title = "Uber drives",
-    x = list(
-      title = "Lat"
-    ),
-    y = list(
-      title = "Lon"
-    )
-  )
+## ----image2Data---------------------------------------------------------------
+image <- as.raster(matrix((1:4)/4, nrow = 2))
+image
+# mapping this image onto a 1 <= x <= 2 and 2 <= y <= 5 plane
+rasterly::image2data(image, x_range = c(1,2), y_range = c(2,5))
 
-## ----plotly_rasterly, warning=FALSE, message=FALSE, fig.width = 4, fig.height = 3, eval = FALSE----
-#  # plotly
-#  ply <- p %>%
-#    plotly.rasterly(sizing = "contain")
-#  ply
+## ----basic plot, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  imageData <- rasterly::image2data(p)
+#  # basic graphics
+#  # It is slow but still much faster than drawing the huge data directly)
+#  plot(x = imageData$x, y = imageData$y, col = imageData$color)
 
-## ------------------------------------------------------------------------
-r <- rasterly(data = ridesDf, 
-                mapping = aes(x = Lat, y = Lon))
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "image2data.png"))
 
-## ----set color, fig.width = 4, fig.height = 3----------------------------
-r %>% 
-  rasterize_points(
-     mapping = aes(color = hour),
-     color_key = hourColors_map,
-     background = "black"
-  ) -> g
-g
+## ----subsetting, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  p["background"]
+#  # $rasterly_env
+#  # [1] "white"
+#  
+#  # $rasterlyPoints1
+#  # [1] "white"
+#  ########### Replace the background in child layer `rasterly_points()`
+#  p["background", level = 2] <- "black"
+#  p["background"]
+#  # $rasterly_env
+#  # [1] "white"
+#  
+#  # $rasterlyPoints1
+#  # [1] "black"
+#  ########## Colors in both `rasterly()` and `rasterly_points()` are replaced
+#  ## fire is a vector of colors (as character strings) with length 256
+#  ## see `rasterly::fire`
+#  p["color", level = 1:2] <- fire_map
+#  p
 
-## ----legend, fig.width = 4, fig.height = 3-------------------------------
-# rasterly doesn't currently support legends, though this feature is forthcoming
-plot(1:24, y = rep(1,24), col = hourColors_map, pch = 19, cex = 3)
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "darkBg.png"))
 
-## ----number of aggregation matrices--------------------------------------
-build_g <- rasterly_build(g)
-# the object has only one layer, so we index into the first element
-length(build_g$agg[[1]])
-# 24
+## ----rasterly_build, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  build <- rasterly_build(p)
+#  str(build)
 
-## ----set color cover, fig.width = 4, fig.height = 3, eval = FALSE--------
-#  r %>%
-#    rasterize_points(
-#       mapping = aes(color = hour),
-#       color_key = hourColors_map,
-#       background = "black",
-#       layout = "cover"
+## ----add_rasterly_heatmap, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  plotly::plot_ly(ridesDf, x = ~Lat, y = ~Lon) %>%
+#    add_rasterly_heatmap() %>%
+#    layout(
+#      title = "Uber drives",
+#      xaxis = list(
+#        title = "Lat"
+#      ),
+#      yaxis = list(
+#        title = "Lon"
+#      )
 #    )
 
-## ----set on, fig.width = 4, fig.height = 3, eval = FALSE-----------------
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "add_rasterizer.gif"))
+
+## ----plotly_rasterly, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  # if as_image is FALSE, the image will be transformed to a data.frame
+#  plotRasterly(ridesDf,
+#               mapping = aes(x = Lat, y = Lon),
+#               as_image = TRUE)
+
+## ----ggRasterly, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  ggRasterly(data = ridesDf,
+#             mapping = aes(x = Lat, y = Lon, color = hour),
+#             color = hourColors_map) +
+#    labs(title = "New York Uber",
+#         subtitle = "Apr to Sept, 2014",
+#         caption = "Data from https://raw.githubusercontent.com/plotly/datasets/master")
+
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "ggUber.png"))
+
+## ----API, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  r <- rasterly(data = ridesDf,
+#                  mapping = aes(x = Lat, y = Lon))
+
+## ----set color, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
 #  r %>%
-#    rasterize_points(
-#      reduction_func = "mean", # take the "mean" reduction function
+#    rasterly_points(
+#      mapping = aes(color = hour),
+#      color = hourColors_map,
+#      background = "black"
+#    ) -> g
+#  # `plot(g)` involves axes and legend as well
+#  plot(g, xlab = "latitude", ylab = "longitude",
+#       main = "Visualization of NYC Uber Rides in 2014",
+#       legend_main = "hour",
+#       legend_label = 0:23)
+
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "uberColor.png"))
+
+## ----set color cover, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  r %>%
+#    rasterly_points(
+#      mapping = aes(color = hour),
+#      color = hourColors_map,
+#      background = "black",
+#      layout = "cover"
+#    ) -> g
+#  plot(g, xlab = "latitude", ylab = "longitude",
+#       main = "Visualization of NYC Uber Rides in 2014",
+#       legend = FALSE)
+
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "uberColorCover.png"))
+
+## ----set on, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  r %>%
+#    rasterly_points(
+#      # take the "mean" reduction function
+#      # more details are in section 'Reduction function'
+#      reduction_func = "mean",
 #      mapping = aes(on = -Lat)
 #    )
 
-## ----set size, fig.width = 4, fig.height = 3, eval = FALSE---------------
+## ----set size, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
 #  r %>%
-#    rasterize_points(
+#    rasterly_points(
 #      mapping = aes(size = month),
 #      max_size = 4
 #    )
 
-## ----reduction on mean, fig.width = 4, fig.height = 3, eval = FALSE------
+## ----reduction on mean, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
 #  r %>%
-#    rasterize_points(
+#    rasterly_points(
 #      reduction_func = "mean", # process the data points using the mean reduction function
 #      background = "black",    # change background to "black" from right to left (from dark to light)
-#      color_map = fire_map # provide a custom color_map
+#      color = fire_map # provide a custom color_map
 #    )
 
-## ----reduction on any, fig.width = 4, fig.height = 3, eval = FALSE-------
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "meanAgg.png"))
+
+## ----reduction on any, eval = FALSE, echo = TRUE, fig.align="center", fig.width = 6, fig.height = 5, out.width = "75%", warning=FALSE, message=FALSE, tidy=FALSE----
+#  # zoom in
 #  r %>%
-#    rasterize_points(
+#    rasterly_points(
 #      reduction_func = "any",
-#      color_map = c("white", "black")
-#    )
+#      color = c("white", "black")
+#    ) %>%
+#    plot(xlim = c(40.3, 41.3))
+
+## ---- out.width= "60%", fig.align="center", echo=FALSE------------------------
+knitr::include_graphics(path_concat(imageDirectory, "anyAgg.png"))
 

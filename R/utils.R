@@ -1,9 +1,40 @@
-.get <- function(x, envir = parent.frame(), inherits = FALSE) {
-  
-  m <- mget(x, envir = envir, ifnotfound = list(NULL),
-            inherits = inherits)
-  return(m[[x]])
+# it is equivalent to R.utils::isZero
+isZero <- function (x, neps = 1, eps = .Machine$double.eps, ...) {
+  if (is.character(eps)) {
+    eps <- match.arg(eps, choices = c("double.eps", "single.eps"))
+    if (eps == "double.eps") {
+      eps <- .Machine$double.eps
+    }
+    else if (eps == "single.eps") {
+      eps <- sqrt(.Machine$double.eps)
+    }
+  }
+  (abs(x) < neps * eps)
 }
+
+
+mbind <- function(new_mapping = aes(), mapping) {
+  
+  if (!missing(mapping) && !inherits(mapping, "uneval") &&
+      !missing(new_mapping) && !inherits(new_mapping, "uneval")) {
+    stop("Mapping should be created with `aes()`.", call. = FALSE)
+  }
+  
+  new_aes(new_mapping %<-% mapping)
+}
+
+.get <- function(x, envir = as.environment(-1), mode = "any", ifnotfound,
+                 inherits = FALSE) {
+  
+  if(missing(ifnotfound))
+    ifnotfound <- list(NULL)
+  
+  mget(x = x, envir = envir, mode = mode,
+       ifnotfound = ifnotfound,
+       inherits = inherits)[[x]]
+  
+}
+
 
 get_cdf <- function(M, zeroIgnored = TRUE, ...) {
   
@@ -21,17 +52,20 @@ get_cdf <- function(M, zeroIgnored = TRUE, ...) {
   return(cdf)
 }
 
-get_mapped_color <- function(color_map = c('lightblue','darkblue'),
-                              span = 50) {
+color_warning <- function(envir, args) {
   
-  # get color rgb value
-  rgb_num <- get_rgb_num(color_map)
-  span <- max(span, length(color_map))
-  # use interpolation to extend color_map
-  col_index <- interpolation(red = rgb_num$red, green = rgb_num$green, blue = rgb_num$blue,
-                             span = span)
+  color_key <- .get("color_key", envir = envir)
+  color_map <- .get("color_map", envir = envir)
   
-  col_index
+  if(is.null(color_key) && is.null(color_map)) {
+    
+    if(!is.null(args$color_key))
+      warning("`color_key` is deprecated now. Please use `color` instead.", call. = FALSE)
+       
+    if(!is.null(args$color_map))
+      warning("`color_map` is deprecated now. Please use `color` instead.", call. = FALSE)   
+    
+  } else NULL # warning has already been generated
 }
 
 get_varnames <- function(var_names, dir) {
@@ -67,4 +101,4 @@ rename_mapping <- function(mapping) {
 # Suggestion from https://stackoverflow.com/questions/9439256/how-can-i-handle-r-cmd-check-no-visible-binding-for-global-variable-notes-when
 # The reason to set globalVariables instead of define x, y, ... is because
 # the cost of extraction values from large data is very heavy
-if(getRversion() >= "3.1.0")  utils::globalVariables(c("..mapping_names", "size", "x", "y", "on", "color"))
+if(getRversion() >= "3.1.0")  utils::globalVariables(c("..mapping_names", "size", "x", "y", "on", "color", "."))
